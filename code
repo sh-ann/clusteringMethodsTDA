@@ -1,0 +1,292 @@
+# !pip install --upgrade pip
+# !pip install opencv-contrib-python
+import cv2
+import numpy as np
+from PIL import Image, ImageChops
+from math import sqrt
+from matplotlib import pyplot as plt
+plt.style.use('seaborn')
+from skimage import data, img_as_float
+import skimage
+from skimage.restoration import denoise_nl_means, estimate_sigma, denoise_tv_chambolle, denoise_bilateral, denoise_wavelet
+from skimage.metrics import peak_signal_noise_ratio
+from skimage.util import random_noise
+from scipy import ndimage
+
+path = r'/Users/anasalamova/Desktop/папка/study/Clustering Methods In Topological Data Analysis/image2.jpeg'
+image = cv2.imread(path)
+plt.imshow(image, cmap='gray')
+# plt.imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+# plt.show()
+
+image.shape
+
+def MSE(image1, image2):
+    mse = np.sum((image1.astype("float") - image2.astype("float")) ** 2)
+    mse /= float(image1.shape[0] * image1.shape[1])
+
+    return mse
+
+# Peak signal-to-noise ratio
+def PSNR(image1, image2, peak=255):
+    mse = MSE(image1,image2)
+    psnr = 10*np.log10(peak**2/mse)
+    return psnr
+    
+def GaussianNoise(image):
+    mean = 0 
+    var = float(input('Defined sigma:'))
+    sigma = sqrt(var)
+    gaussianNoise = np.random.normal(mean, sigma, (image.shape[0],image.shape[1]))
+    print(image.shape)
+    noisyImage = np.zeros(image.shape, np.float64)
+    # if len(image.shape == 2 it means that the image is binary)
+    if len(image.shape) == 2:
+        noisyImage = image + gaussianNoise
+    # else case means that the image is not binary
+    else:
+        noisyImage[:, :, 0] = image[:, :, 0] + gaussianNoise
+        noisyImage[:, :, 1] = image[:, :, 1] + gaussianNoise
+        noisyImage[:, :, 2] = image[:, :, 2] + gaussianNoise
+        
+    cv2.normalize(noisyImage, noisyImage, 0, 255, cv2.NORM_MINMAX, dtype=-1)
+    noisyImage = noisyImage.astype(np.uint8)
+    
+    fig=plt.figure(dpi=300)
+    
+    fig.add_subplot(1,3,1)
+    plt.imshow(image, cmap='gray')
+    plt.axis("off")
+    plt.title("Original Image")
+    
+    fig.add_subplot(1,3,2)
+    plt.imshow(gaussianNoise, cmap='gray')
+    plt.axis("off")
+    plt.title("Gaussian Noise")
+    
+    fig.add_subplot(1,3,3)
+    plt.imshow(noisyImage, cmap='gray')
+    plt.axis("off")
+    plt.title("Noisy image")
+    
+    print('MSE:', MSE(image, noisyImage))
+    print('PSNR:', PSNR(image, noisyImage, peak=255))
+    return noisyImage
+    
+    
+imageGaussian = image
+GaussianNoise(imageGaussian)
+
+def UniformNoise(image):
+    noisyImage = np.zeros(image.shape, np.uint8)
+    uniformNoise = np.zeros((image.shape[0], image.shape[1]), np.uint8)
+    a = float(input())
+    b = float(input())
+    for i in range(image.shape[0]):
+        for j in range(image.shape[1]):
+            uniformNoise[i][j] = np.random.uniform(a, b)
+    print(image.shape)
+    if len(image.shape) == 2:
+        noisyImage = image + gaussianNoise
+    else:
+        noisyImage[:, :, 0] = image[:, :, 0] + uniformNoise
+        noisyImage[:, :, 1] = image[:, :, 1] + uniformNoise
+        noisyImage[:, :, 2] = image[:, :, 2] + uniformNoise
+#     noisyImage = cv2.add(image, uniformNoise)
+#     uniformNoise = np.zeros((1344, 2048),dtype=np.uint8)
+#     cv2.randu(uniformNoise,0,255)
+#     uniformNoise = (uniformNoise*0.5).astype(np.uint8)
+#     uniformNoise = image + uniformNoise
+    fig = plt.figure(dpi=300)
+    
+    fig.add_subplot(1,3,1)
+    plt.imshow(image, cmap='gray')
+    plt.axis("off")
+    plt.title("Original Image")
+    
+    fig.add_subplot(1,3,2)
+    plt.imshow(uniformNoise, cmap='gray')
+    plt.axis("off")
+    plt.title("Uniform Noise")
+    
+    fig.add_subplot(1,3,3)
+    plt.imshow(noisyImage, cmap='gray')
+    plt.axis("off")
+    plt.title("Noisy image")
+    
+    print('MSE:', MSE(image, noisyImage))
+    print('PSNR:', PSNR(image, noisyImage, peak=255))
+    
+    return noisyImage
+
+
+imageUniform = image
+UniformNoise(imageUniform)
+
+plt.imshow(image, cmap='gray')
+
+def PapAndSaltNoise(image):
+    # we need to randomly add black and white pixels to the image
+    randomWhiteNumber = np.random.randint(image.shape[0]*image.shape[1])
+    randomBlackNumber = np.random.randint(image.shape[0]*image.shape[1])
+    noisyImage = np.zeros(image.shape, np.uint8)
+    sapNoise = np.zeros((image.shape[0], image.shape[1], 3), np.uint8)
+    for i in range(randomWhiteNumber):
+        x = np.random.randint(0, image.shape[1] - 1)
+        y = np.random.randint(0, image.shape[0] - 1)
+        sapNoise[y][x] = 255
+    for i in range(randomBlackNumber):
+        x = np.random.randint(0, image.shape[1] - 1)
+        y = np.random.randint(0, image.shape[0] - 1)
+        sapNoise[y][x] = 0
+
+    noisyImage = image + sapNoise
+
+    plt.imshow(sapNoise, cmap='gray')
+    
+    fig = plt.figure(dpi=300)
+    
+    fig.add_subplot(1,3,1)
+    plt.imshow(image, cmap='gray')
+    plt.axis("off")
+    plt.title("Original Image")
+    
+    fig.add_subplot(1,3,2)
+    plt.imshow(sapNoise, cmap='gray')
+    plt.axis("off")
+    plt.title("Salt and Paper Noise")
+    
+    fig.add_subplot(1,3,3)
+    plt.imshow(noisyImage, cmap='gray')
+    plt.axis("off")
+    plt.title("Noisy image")
+    
+    print('MSE:', MSE(image, noisyImage))
+    print('PSNR:', PSNR(image, noisyImage, peak=255))
+    
+    return noisyImage
+    
+imageSap = image
+PapAndSaltNoise(imageSap)
+
+def AddRandomNoise(image, mode, i):
+    gimg = np.zeros(image.shape, np.float32)
+    plt.subplot(4,2,i)
+    if mode is not None:
+        gimg = skimage.util.random_noise(image, mode=mode)
+        plt.imshow(gimg)
+    else:
+        plt.imshow(image)
+    plt.title(mode)
+    plt.axis("off")
+    return gimg
+
+plt.figure(figsize=(18,24))
+
+gImage = AddRandomNoise(image, "gaussian", 1)
+lImage = AddRandomNoise(image, "localvar", 2)
+pImage = AddRandomNoise(image, "poisson", 3)
+sImage = AddRandomNoise(image, "salt", 4)
+pepIamge = AddRandomNoise(image, "pepper", 5)
+spImage = AddRandomNoise(image, "s&p",6)
+speckImage = AddRandomNoise(image, "speckle", 7)
+AddRandomNoise(image, None, 8)
+plt.show()
+
+print('List of MSE and PSNR:')
+print('Gaussian:', MSE(image, gImage))
+print(PSNR(image, gImage, peak=255))
+print('Localvar:', MSE(image, lImage))
+print(PSNR(image, lImage, peak=255))
+print('Poisson:', MSE(image, pImage))
+print(PSNR(image, pImage, peak=255))
+print('Salt:', MSE(image, sImage))
+print(PSNR(image, sImage, peak=255))
+print('Pepper:', MSE(image, pepIamge))
+print(PSNR(image, pepIamge, peak=255))
+print('Salt and paper:', MSE(image, spImage))
+print(PSNR(image, spImage, peak=255))
+print('Speckle:', MSE(image, speckImage))
+print(PSNR(image, speckImage, peak=255))
+
+
+noisyImageG = GaussianNoise(imageGaussian)
+noisyImageU = UniformNoise(imageUniform)
+noisyImageSAP = PapAndSaltNoise(imageSap)
+
+noisyImage = noisyImageSAP
+
+
+sigma_est = np.mean(estimate_sigma(image, multichannel=True))
+print(sigma_est)
+
+denoisedImageNLM = denoise_nl_means(noisyImage, h=1.15 * sigma_est, fast_mode=True,
+                               patch_size=5, patch_distance=3, multichannel=True, preserve_range=False)
+print(MSE(image, denoisedImageNLM))
+print(MSE(noisyImage, denoisedImageNLM))
+fig = plt.figure(dpi=300)   
+
+fig.add_subplot(1,2,1)
+plt.imshow(noisyImage, cmap='gray')
+plt.axis("off")
+plt.title("Noisy image")
+     
+fig.add_subplot(1,2,2)
+plt.imshow(denoisedImageNLM, cmap='gray')
+plt.axis("off")
+plt.title("Denoised image")
+    
+# def NeighborsPixel(boardImage, patchDistance, patchSize, heightImage, widthImage):
+
+    
+#     pixelNeighbors = np.zeros((boardImage.shape[0], boardImage.shape[1], patchDistance, patchDistance), np.uint8)
+#     print(boardImage.shape)
+#     print(pixelNeighbors.shape)
+    
+#     for i in range(patchSize//2, patchSize//2 + heightImage):
+#         for j in range(patchSize//2, patchSize//2 + widthImage):   
+#               pixelNeighbors[i,j] = boardImage[(i - patchDistance//2):(i + patchDistance//2 + 1) , (j - patchDistance//2):(j + patchDistance + 1)]
+    
+#     return pixelNeighbors
+
+
+# patchDistance = 10
+# patchSize = 30
+# heightImage, widthImage = image.shape[0], image.shape[1]
+
+# boardImage = np.pad(image, patchSize//2, mode='reflect')
+
+
+denoisedImageTVCH = denoise_tv_chambolle(noisyImage, weight=0.1)
+
+print('Denoised TVCH image', MSE(noisyImage, denoisedImageTVCH))
+
+fig = plt.figure(dpi=300)   
+
+fig.add_subplot(1,2,1)
+plt.imshow(noisyImage, cmap='gray')
+plt.axis("off")
+plt.title("Noisy image")
+     
+fig.add_subplot(1,2,2)
+plt.imshow(denoisedImageTVCH, cmap='gray')
+plt.axis("off")
+plt.title("Denoised image")
+
+
+denoisedGaussianBlur = ndimage.gaussian_filter(noisyImage, 4)
+
+print('Denoised Gaussian Blur image', MSE(noisyImage, denoisedGaussianBlur))
+
+fig = plt.figure(dpi=300)   
+
+fig.add_subplot(1,2,1)
+plt.imshow(noisyImage, cmap='gray')
+plt.axis("off")
+plt.title("Noisy image")
+     
+fig.add_subplot(1,2,2)
+plt.imshow(denoisedGaussianBlur, cmap='gray')
+plt.axis("off")
+plt.title("Denoised image")
+# NeighborsPixel(boardImage, patchDistance, patchSize, heightImage, widthImage)
