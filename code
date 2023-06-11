@@ -245,16 +245,9 @@ plt.title("Denoised image")
     
 #     for i in range(patchSize//2, patchSize//2 + heightImage):
 #         for j in range(patchSize//2, patchSize//2 + widthImage):   
-#               pixelNeighbors[i,j] = boardImage[(i - patchDistance//2):(i + patchDistance//2 + 1) , (j - patchDistance//2):(j + patchDistance + 1)]
     
 #     return pixelNeighbors
 
-
-# patchDistance = 10
-# patchSize = 30
-# heightImage, widthImage = image.shape[0], image.shape[1]
-
-# boardImage = np.pad(image, patchSize//2, mode='reflect')
 
 
 denoisedImageTVCH = denoise_tv_chambolle(noisyImage, weight=0.1)
