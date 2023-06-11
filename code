@@ -243,8 +243,8 @@ plt.title("Denoised image")
 #     print(boardImage.shape)
 #     print(pixelNeighbors.shape)
     
-#     for i in range(patchSize//2, patchSize//2 + heightImage):
-#         for j in range(patchSize//2, patchSize//2 + widthImage):   
+#      for i in range(patchSize//2, heightImage):
+#            for j in range(patchSize//2, widthImage):
     
 #     return pixelNeighbors
 
